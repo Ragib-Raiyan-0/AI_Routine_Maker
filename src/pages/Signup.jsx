@@ -1,214 +1,168 @@
-import { Link, useNavigate } from "react-router";
-
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { FaEye } from "react-icons/fa";
-
 import { IoEyeOff } from "react-icons/io5";
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import app from "../firebase/firebase.config";
+import { useDarkMode } from "../context/DarkModeContext.jsx";
 
-import MyContainer from "../components/MyContainer";
-import firebase from "../firebase/firebase.config";
-import { auth } from "../firebase/firebase.config";
-import { toast } from "react-toastify";
-import { useContext, useState } from "react";
-import { AuthContext } from "../context/AuthContext";
+const auth = getAuth(app);
 
 const Signup = () => {
-  const [show, setShow] = useState(false);
-  const {
-    createUserWithEmailAndPasswordFunc,
-    updateProfileFunc,
-    sendEmailVerificationFunc,
-    setLoading,
-    signoutUserFunc,
-    setUser,
-  } = useContext(AuthContext);
   const navigate = useNavigate();
+  const { darkMode } = useDarkMode();
 
-  const handleSignup = (e) => {
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    photo: "",
+  });
+
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSignup = async (e) => {
     e.preventDefault();
-    const displayName = e.target.name?.value;
-    const photoURL = e.target.photo?.value;
-    const email = e.target.email?.value;
-    const password = e.target.password?.value;
-
-    console.log("signup function entered", {
-      email,
-      displayName,
-      photoURL,
-      password,
-    });
-
-    // console.log(password.length);
-    // if (password.length < 6) {
-    //   toast.error("Password should be at least 6 digit");
-    //   return;
-    // }
-
-    const regExp =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()\-_=+])[A-Za-z\d@$!%*?&#^()\-_=+]{8,}$/;
-
-    console.log(regExp.test(password));
-
-    if (!regExp.test(password)) {
-      toast.error(
-        "Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character"
-      );
-      return;
+    try {
+      const result = await createUserWithEmailAndPassword(auth, form.email, form.password);
+      await updateProfile(result.user, { displayName: form.name, photoURL: form.photo });
+      navigate("/signin");
+    } catch (error) {
+      alert(error.message);
     }
-
-    // 1st step : Create user
-    // createUserWithEmailAndPassword(auth, email, password);
-    createUserWithEmailAndPasswordFunc(email, password)
-      .then((res) => {
-        // 2nd step: Update profile
-        updateProfileFunc(displayName, photoURL)
-          .then(() => {
-            console.log(res);
-            // 3rd step: Email verification
-            sendEmailVerificationFunc()
-              .then((res) => {
-                console.log(res);
-                setLoading(false);
-
-                // Signout user
-                signoutUserFunc().then(() => {
-                  toast.success(
-                    "Signup successful. Check your email to validate your account. "
-                  );
-                  setUser(null);
-                  navigate("/signin");
-                });
-              })
-              .catch((e) => {
-                console.log(e);
-                toast.error(e.message);
-              });
-          })
-          .catch((e) => {
-            console.log(e);
-            toast.error(e.message);
-          });
-      })
-      .catch((e) => {
-        console.log(e);
-        console.log(e.code);
-        if (e.code === "auth/email-already-in-use") {
-          toast.error(
-            "User already exists in the database. Etai bastob haahahahaha"
-          );
-        } else if (e.code === "auth/weak-password") {
-          toast.error("Bhai tomake at least 6 ta digit er pass dite hobe");
-        } else if (e.code === "auth/invalid-email") {
-          toast.error("Invalid email format. Please check your email.");
-        } else if (e.code === "auth/user-not-found") {
-          toast.error("User not found. Please sign up first.");
-        } else if (e.code === "auth/wrong-password") {
-          toast.error("Wrong password. Please try again.");
-        } else if (e.code === "auth/user-disabled") {
-          toast.error("This user account has been disabled.");
-        } else if (e.code === "auth/too-many-requests") {
-          toast.error("Too many attempts. Please try again later.");
-        } else if (e.code === "auth/operation-not-allowed") {
-          toast.error("Operation not allowed. Please contact support.");
-        } else if (e.code === "auth/network-request-failed") {
-          toast.error("Network error. Please check your connection.");
-        } else {
-          toast.error(e.message || "An unexpected error occurred.");
-        }
-      });
   };
 
   return (
-    <div className="min-h-[96vh] flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 relative overflow-hidden">
-      {/* Animated floating circles */}
-      <div className="absolute inset-0">
-        <div className="absolute w-72 h-72 bg-pink-400/30 rounded-full blur-2xl top-10 left-10 animate-pulse"></div>
-        <div className="absolute w-72 h-72 bg-purple-400/30 rounded-full blur-2xl bottom-10 right-10 animate-pulse"></div>
-      </div>
+    <div
+      className={`min-h-screen flex justify-center items-center px-4 transition-colors duration-300 ${
+        darkMode
+          ? "bg-gradient-to-br from-[#0f172a] via-[#071126] to-[#061226] text-white"
+          : "bg-gradient-to-br from-purple-200 via-purple-300 to-purple-400 text-black"
+      }`}
+    >
+      <div
+        className={`w-full max-w-md p-8 rounded-2xl backdrop-blur-xl border transition-colors duration-300 shadow-lg ${
+          darkMode
+            ? "border-white/10 bg-white/5 text-white"
+            : "border-gray-300 bg-white text-black"
+        }`}
+      >
+        <h1
+          className={`text-3xl md:text-4xl font-extrabold text-center mb-6 tracking-tight ${
+            darkMode ? "text-white" : "text-gray-900"
+          }`}
+        >
+          Sign Up
+        </h1>
 
-      <MyContainer>
-        <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-10 p-6 lg:p-10 text-white">
-          <div className="max-w-lg text-center lg:text-left">
-            <h1 className="text-5xl font-extrabold drop-shadow-lg">
-              Create Your Account
-            </h1>
-            <p className="mt-4 text-lg text-white/80 leading-relaxed">
-              Join our community and unlock exclusive features. Your journey
-              begins here!
-            </p>
+        {/* Profile Photo */}
+        <div className="flex flex-col items-center mb-6">
+          <label className={`text-sm mb-2 ${darkMode ? "text-white/80" : "text-gray-800"}`}>
+            Profile Photo
+          </label>
+          <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-purple-500 mb-3">
+            <img
+              src={form.photo || "../Media/profile icon.png"}
+              alt="Profile"
+              className="w-full h-full object-cover"
+            />
           </div>
-
-          <div className="w-full max-w-md backdrop-blur-lg bg-white/10 border border-white/20 shadow-2xl rounded-2xl p-8">
-            <h2 className="text-2xl font-semibold mb-6 text-center text-white">
-              Sign Up
-            </h2>
-
-            <form onSubmit={handleSignup} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="Habib utsho"
-                  className="input input-bordered w-full bg-white/20 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-pink-400"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Photo</label>
-                <input
-                  type="text"
-                  name="photo"
-                  placeholder="Your photo URL here"
-                  className="input input-bordered w-full bg-white/20 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-pink-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="example@email.com"
-                  className="input input-bordered w-full bg-white/20 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-pink-400"
-                />
-              </div>
-
-              <div className="relative">
-                <label className="block text-sm font-medium mb-1">
-                  Password
-                </label>
-                <input
-                  type={show ? "text" : "password"}
-                  name="password"
-                  placeholder="••••••••"
-                  className="input input-bordered w-full bg-white/20 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-pink-400"
-                />
-                <span
-                  onClick={() => setShow(!show)}
-                  className="absolute right-[8px] top-[36px] cursor-pointer z-50"
-                >
-                  {show ? <FaEye /> : <IoEyeOff />}
-                </span>
-              </div>
-
-              <button type="submit" className="my-btn">
-                Sign Up
-              </button>
-
-              <div className="text-center mt-3">
-                <p className="text-sm text-white/80">
-                  Already have an account?{" "}
-                  <Link
-                    to="/signin"
-                    className="text-pink-300 hover:text-white font-medium underline"
-                  >
-                    Sign in
-                  </Link>
-                </p>
-              </div>
-            </form>
-          </div>
+          <input
+            type="text"
+            name="photo"
+            placeholder="Photo URL"
+            value={form.photo}
+            onChange={handleChange}
+            className={`input input-bordered w-full placeholder-gray-500 transition-colors duration-300 ${
+              darkMode ? "bg-white/10 text-white" : "bg-gray-100 text-black"
+            }`}
+          />
         </div>
-      </MyContainer>
+
+        <form onSubmit={handleSignup} className="space-y-4">
+          <div>
+            <label className={`block text-sm mb-1 ${darkMode ? "text-white/70" : "text-gray-800"}`}>
+              Name
+            </label>
+            <input
+              type="text"
+              name="name"
+              placeholder="Your name"
+              value={form.name}
+              onChange={handleChange}
+              required
+              className={`input input-bordered w-full placeholder-gray-500 transition-colors duration-300 ${
+                darkMode ? "bg-white/10 text-white" : "bg-gray-100 text-black"
+              }`}
+            />
+          </div>
+
+          <div>
+            <label className={`block text-sm mb-1 ${darkMode ? "text-white/70" : "text-gray-800"}`}>
+              Email
+            </label>
+            <input
+              type="email"
+              name="email"
+              placeholder="Your email"
+              value={form.email}
+              onChange={handleChange}
+              required
+              className={`input input-bordered w-full placeholder-gray-500 transition-colors duration-300 ${
+                darkMode ? "bg-white/10 text-white" : "bg-gray-100 text-black"
+              }`}
+            />
+          </div>
+
+          <div>
+            <label className={`block text-sm mb-1 ${darkMode ? "text-white/70" : "text-gray-800"}`}>
+              Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Your password"
+                value={form.password}
+                onChange={handleChange}
+                required
+                className={`input input-bordered w-full placeholder-gray-500 transition-colors duration-300 ${
+                  darkMode ? "bg-white/10 text-white" : "bg-gray-100 text-black"
+                }`}
+              />
+              <span
+                className={`absolute right-3 top-3 cursor-pointer transition-colors duration-300 ${
+                  darkMode ? "text-white/70 hover:text-white" : "text-gray-600 hover:text-gray-900"
+                }`}
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <IoEyeOff /> : <FaEye />}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="btn w-full bg-gradient-to-r from-purple-700 to-pink-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg transition-all"
+          >
+            Sign Up
+          </button>
+        </form>
+
+        <p className={`text-center mt-4 transition-colors duration-300 ${darkMode ? "text-white/60" : "text-gray-800"}`}>
+          Already have an account?{" "}
+          <Link
+            to="/signin"
+            className="text-yellow-500 font-medium hover:underline"
+          >
+            Login
+          </Link>
+        </p>
+      </div>
     </div>
   );
 };

@@ -79,7 +79,7 @@ const Navbar = () => {
             </div>
           ) : (
             <button className="bg-purple-500 text-white px-4 py-2 rounded-md font-semibold cursor-pointer">
-              <Link to={"/signin"}>Sign in</Link>
+              <Link to={"/Signin"}>Sign in</Link>
             </button>
           )}
         </div>
