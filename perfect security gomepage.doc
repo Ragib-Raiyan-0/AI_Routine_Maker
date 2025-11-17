@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useContext } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useDarkMode } from "../context/DarkModeContext.jsx";
+import { AuthContext } from "../context/AuthContext";
 
 const STORAGE_KEY = "ai_routine_classes_v1";
 const WEEK_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
@@ -11,6 +12,8 @@ function minutesToTime(mins){const hh=Math.floor(mins/60).toString().padStart(2,
 
 const Homepage = () => {
   const { darkMode } = useDarkMode();
+  const { user, loading } = useContext(AuthContext);
+
   const [classes, setClasses] = useState([]);
   const [form, setForm] = useState({
     subject: "",
@@ -20,14 +23,14 @@ const Homepage = () => {
     time: "09:00",
     duration: 60,
   });
-  const [view, setView] = useState("today"); // "today" or "week"
+
   const remindedRef = useRef({});
 
-  // Load classes
   useEffect(() => {
+    if(!user) return;
     const raw = localStorage.getItem(STORAGE_KEY);
     if(raw){ try{ setClasses(JSON.parse(raw)) }catch{ setClasses([]); }}
-  }, []);
+  }, [user]);
 
   useEffect(()=>{ localStorage.setItem(STORAGE_KEY, JSON.stringify(classes)) }, [classes]);
 
@@ -46,31 +49,42 @@ const Homepage = () => {
   }
 
   const handleChange=e=>{ const {name,value}=e.target; setForm(s=>({...s,[name]:value})); };
+
   const addClass=e=>{ 
     e.preventDefault(); 
     if(!form.subject.trim()||!form.time){toast.warn("Provide subject and time"); return;} 
-    const newItem={ id:`${Date.now()}-${Math.floor(Math.random()*10000)}`, subject:form.subject.trim(), teacher:form.teacher.trim(), room:form.room.trim(), day:form.day, time:form.time, duration:Number(form.duration)||60 }; 
+    const newItem={
+      id:`${Date.now()}-${Math.floor(Math.random()*10000)}`, 
+      subject:form.subject.trim(), 
+      teacher:form.teacher.trim(), 
+      room:form.room.trim(), 
+      day:form.day, 
+      time:form.time, 
+      duration:Number(form.duration)||60
+    }; 
     setClasses(prev=>[...prev,newItem]); 
     setForm(s=>({...s,subject:"",teacher:"",room:""})); 
-    toast.success("Class added"); 
+    toast.success(`Class added for ${form.day}`); 
   };
-  const removeClass=id=>{ if(!window.confirm("Delete this class?")) return; setClasses(prev=>prev.filter(c=>c.id!==id)); toast.success("Removed"); };
+
+  const removeClass=id=>{ 
+    if(!window.confirm("Delete this class?")) return; 
+    setClasses(prev=>prev.filter(c=>c.id!==id)); 
+    toast.success("Removed"); 
+  };
 
   const now=new Date();
   const todayName=WEEK_DAYS[now.getDay()];
   const currentMinutes=now.getHours()*60+now.getMinutes();
-
-  // Filter classes based on view
-  const filteredClasses = view === "today"
-    ? classes.filter(c=>c.day===todayName)
-    : classes;
-
-  const sortedClasses = filteredClasses
+  const todaysClasses=classes
+    .filter(c=>c.day===todayName)
     .map(c=>({...c,startMins:timeToMinutes(c.time),endMins:timeToMinutes(c.time)+Number(c.duration||60)}))
-    .sort((a,b)=>view==="today" ? a.startMins-b.startMins : (WEEK_DAYS.indexOf(a.day)-WEEK_DAYS.indexOf(b.day) || a.startMins-b.startMins));
+    .sort((a,b)=>a.startMins-b.startMins);
+  const ongoing=todaysClasses.find(c=>currentMinutes>=c.startMins && currentMinutes<c.endMins);
+  const nextClass=todaysClasses.find(c=>c.startMins>currentMinutes);
 
-  const ongoing = view==="today" ? sortedClasses.find(c=>currentMinutes>=c.startMins && currentMinutes<c.endMins) : null;
-  const nextClass = view==="today" ? sortedClasses.find(c=>c.startMins>currentMinutes) : null;
+  if(loading) return <div className="min-h-screen flex justify-center items-center text-xl font-semibold">Loading...</div>;
+  if(!user) return <div className="min-h-screen flex justify-center items-center text-xl font-semibold">Please sign in to access your routine.</div>;
 
   return (
     <div className={`min-h-screen flex flex-col items-center p-6 transition-colors duration-300 ${darkMode?"bg-gradient-to-br from-[#0f172a] via-[#071126] to-[#061226] text-white":"bg-gradient-to-br from-purple-300 via-purple-500 to-purple-300 text-black"}`}>
@@ -96,32 +110,37 @@ const Homepage = () => {
             </div>
             <div className="flex gap-2">
               <input name="duration" value={form.duration} onChange={handleChange} type="number" min="5" className={`input input-bordered w-32 ${darkMode?"bg-white/10 text-white":"bg-white text-black"}`} placeholder="Duration (min)" />
-              <button type="submit" className="btn btn-primary flex-1">Add Class</button>
+              <button type="submit" className="btn btn-primary flex-1 hover:shadow-lg transition-shadow">Add Class</button>
             </div>
           </form>
         </section>
 
-        {/* Routine View */}
+        {/* Today's Routine */}
         <section className={`md:col-span-2 p-4 rounded-2xl backdrop-blur-sm border ${darkMode?"border-white/10":"border-black/10"}`}>
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-xl font-semibold">{view==="today" ? "Today's Routine" : "All Week Classes"}</h2>
-              {view==="today" && <div className="text-sm opacity-70 mt-1">{todayName}</div>}
+              <h2 className="text-xl font-semibold">Today's Routine</h2>
+              <div className="text-sm opacity-70 mt-1">{todayName}</div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={()=>setView("today")} className={`btn btn-sm ${view==="today"?"btn-primary":"btn-ghost"}`}>Today</button>
-              <button onClick={()=>setView("week")} className={`btn btn-sm ${view==="week"?"btn-primary":"btn-ghost"}`}>All Week</button>
+            <div className="text-right">
+              {ongoing ? (
+                <div className="badge badge-success badge-lg">Ongoing: {ongoing.subject}</div>
+              ) : nextClass ? (
+                <div className="badge badge-warning badge-lg">Next: {nextClass.subject} at {nextClass.time}</div>
+              ) : (
+                <div className="badge badge-ghost">No more classes</div>
+              )}
             </div>
           </div>
 
           <div className="mt-4 space-y-3">
-            {sortedClasses.length===0 ? (
-              <div className={`p-6 rounded-lg border text-center ${darkMode?"border-white/10 text-white/70":"border-black/10 text-black/70"}`}>No classes.</div>
+            {todaysClasses.length === 0 ? (
+              <div className={`p-6 rounded-lg border ${darkMode?"border-white/10 text-white/70":"border-black/10 text-black/70"} text-center`}>No classes for today.</div>
             ) : (
-              sortedClasses.map(c=>{
-                const isOngoing = view==="today" ? currentMinutes>=c.startMins && currentMinutes<c.endMins : false;
+              todaysClasses.map(c=>{
+                const isOngoing=currentMinutes>=c.startMins && currentMinutes<c.endMins;
                 return (
-                  <div key={c.id} className={`p-3 rounded-lg flex justify-between items-center border transition-colors duration-300 ${isOngoing?"bg-gradient-to-r from-[#07324a] to-[#0b394e] border-primary":`bg-transparent ${darkMode?"border-white/5":"border-black/10"}`}`}>
+                  <div key={c.id} className={`p-3 rounded-lg flex justify-between items-center border shadow-sm hover:shadow-md transition-all duration-200 ${isOngoing?"bg-gradient-to-r from-[#07324a] to-[#0b394e] border-primary":`bg-transparent ${darkMode?"border-white/5":"border-black/10"}`}`}>
                     <div>
                       <div className="flex items-baseline gap-3">
                         <div className="text-lg font-medium">{c.subject}</div>
@@ -134,12 +153,15 @@ const Homepage = () => {
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <div className="flex gap-2">
-                        <button onClick={()=>{navigator.clipboard?.writeText(`${c.subject} — ${c.time} (${c.duration}m) — ${c.room} — ${c.teacher}`); toast.success("Copied");}} className="btn btn-xs btn-ghost">Copy</button>
+                        <button onClick={()=>{
+                          navigator.clipboard?.writeText(`${c.subject} — ${c.time} (${c.duration}m) — ${c.room} — ${c.teacher}`);
+                          toast.success("Copied");
+                        }} className="btn btn-xs btn-ghost">Copy</button>
                         <button onClick={()=>removeClass(c.id)} className="btn btn-xs btn-outline btn-error">Delete</button>
                       </div>
                     </div>
                   </div>
-                )
+                );
               })
             )}
           </div>
