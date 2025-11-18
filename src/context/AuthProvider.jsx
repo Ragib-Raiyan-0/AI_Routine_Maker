@@ -20,22 +20,20 @@ const githubProvider = new GithubAuthProvider();
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [popupOpen, setPopupOpen] = useState(false); // prevent multiple popups
 
-  console.log(auth);
-
+  // Email Sign-Up
   const createUserWithEmailAndPasswordFunc = (email, password) => {
+    setLoading(true);
     return createUserWithEmailAndPassword(auth, email, password);
   };
 
+  // Update Profile
   const updateProfileFunc = (displayName, photoURL) => {
-    return updateProfile(auth.currentUser, {
-      displayName,
-      photoURL,
-    });
+    return updateProfile(auth.currentUser, { displayName, photoURL });
   };
 
   const sendEmailVerificationFunc = () => {
-    setLoading(true);
     return sendEmailVerification(auth.currentUser);
   };
 
@@ -43,19 +41,48 @@ const AuthProvider = ({ children }) => {
     setLoading(true);
     return signInWithEmailAndPassword(auth, email, password);
   };
-  const signInWithEmailFunc = () => {
+
+  // Google Sign-In
+  const signInWithGoogleFunc = async () => {
+    if (popupOpen) return;
+    setPopupOpen(true);
     setLoading(true);
-    return signInWithPopup(auth, googleProvider);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      setUser(result.user);
+      return result.user;
+    } catch (error) {
+      console.error("Google Sign-In Error:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+      setPopupOpen(false);
+    }
   };
-  const signInWithGithubFunc = () => {
+
+  // GitHub Sign-In
+  const signInWithGithubFunc = async () => {
+    if (popupOpen) return;
+    setPopupOpen(true);
     setLoading(true);
-    return signInWithPopup(auth, githubProvider);
+    try {
+      const result = await signInWithPopup(auth, githubProvider);
+      setUser(result.user);
+      return result.user;
+    } catch (error) {
+      console.error("GitHub Sign-In Error:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+      setPopupOpen(false);
+    }
   };
 
   const signoutUserFunc = () => {
     setLoading(true);
     return signOut(auth);
   };
+
   const sendPassResetEmailFunc = (email) => {
     setLoading(true);
     return sendPasswordResetEmail(auth, email);
@@ -64,31 +91,27 @@ const AuthProvider = ({ children }) => {
   const authInfo = {
     user,
     setUser,
+    loading,
+    setLoading,
     createUserWithEmailAndPasswordFunc,
     signInWithEmailAndPasswordFunc,
-    signInWithEmailFunc,
+    signInWithGoogleFunc,
     signInWithGithubFunc,
     signoutUserFunc,
     sendPassResetEmailFunc,
     sendEmailVerificationFunc,
     updateProfileFunc,
-    loading,
-    setLoading,
   };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currUser) => {
-      console.log(currUser);
       setUser(currUser);
       setLoading(false);
     });
-
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
-  return <AuthContext value={authInfo}>{children}</AuthContext>;
+  return <AuthContext.Provider value={authInfo}>{children}</AuthContext.Provider>;
 };
 
 export default AuthProvider;

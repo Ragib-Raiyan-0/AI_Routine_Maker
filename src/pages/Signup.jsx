@@ -71,16 +71,8 @@ const Signup = () => {
               className="w-full h-full object-cover"
             />
           </div>
-          <input
-            type="text"
-            name="photo"
-            placeholder="Photo URL"
-            value={form.photo}
-            onChange={handleChange}
-            className={`input input-bordered w-full placeholder-gray-500 transition-colors duration-300 ${
-              darkMode ? "bg-white/10 text-white" : "bg-gray-100 text-black"
-            }`}
-          />
+          
+          
         </div>
 
         <form onSubmit={handleSignup} className="space-y-4">
